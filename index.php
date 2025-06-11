@@ -1,331 +1,268 @@
-<?php
-// Inclui o arquivo de conexão com o banco de dados
-include '../banco.php';
 
-// EXCLUSÃO DE PRODUTO
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
-    // Recebe o ID do produto a ser excluído
-    $id = (int) $_POST['delete_id'];
-
-    // Monta a query para excluir o produto pelo ID
-    $sql = "DELETE FROM PRODUTOS WHERE ID = ?";
-    $stmt = $con->prepare($sql);
-    $stmt->bind_param("i", $id);
-
-    // Executa a exclusão e exibe mensagem de sucesso ou erro
-    if ($stmt->execute()) {
-        echo "<script>alert('Produto excluído com sucesso!');</script>";
-    } else {
-        echo "<script>alert('Erro ao excluir o produto.');</script>";
-    }
-    // Redireciona para a mesma página para evitar reenvio do formulário
-    header("Location: " . $_SERVER['PHP_SELF']);
-    exit;
-}
-
-// CADASTRO E EDIÇÃO DE PRODUTO
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Recebe os dados do formulário
-    $id = isset($_POST['id']) ? (int) $_POST['id'] : null;
-    $categoria = isset($_POST['categoria']) ? strtoupper($_POST['categoria']) : null; // Converte para maiúsculas
-    $produto = isset($_POST['produto']) ? strtoupper($_POST['produto']) : null; // Converte para maiúsculas
-    $quantidade = isset($_POST['quantidade']) ? (int) $_POST['quantidade'] : null;
-    $valor_unitario = isset($_POST['valor_unitario']) ? (float) $_POST['valor_unitario'] : null;
-
-    // Verifica se todos os campos obrigatórios estão preenchidos
-    if ($categoria && $produto && $quantidade && $valor_unitario) {
-        // Calcula o valor total do produto
-        $valor_total = $quantidade * $valor_unitario;
-
-        // Verifica se é edição (ID existe) ou cadastro (novo produto)
-        if ($id) {
-            // Atualiza o produto existente
-            $sql = "UPDATE PRODUTOS SET CATEGORIA = ?, PRODUTO = ?, QUANTIDADE = ?, VALOR_UNITARIO = ?, VALOR_TOTAL = ? WHERE ID = ?";
-            $stmt = $con->prepare($sql);
-            $stmt->bind_param("ssiddi", $categoria, $produto, $quantidade, $valor_unitario, $valor_total, $id);
-            if ($stmt->execute()) {
-                echo "<script>alert('Produto atualizado com sucesso!');</script>";
-                header("Location: " . $_SERVER['PHP_SELF']);
-                exit;
-            } else {
-                echo "<script>alert('Erro ao atualizar o produto.');</script>";
-            }
-        } else {
-            // Cadastro de novo produto
-            $fotoDestino = null;
-            // Verifica se uma foto foi enviada e não houve erro
-            if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
-                $fotoTmp = $_FILES['foto']['tmp_name'];
-                $fotoNome = basename($_FILES['foto']['name']);
-                $fotoDestino = "uploads/" . $fotoNome;
-
-                // Cria a pasta uploads se não existir
-                if (!is_dir("admin/uploads")) {
-                    mkdir("admin/uploads", 0777, true);
-                }
-
-                // Move o arquivo enviado para o destino
-                move_uploaded_file($fotoTmp, $fotoDestino);
-                if (move_uploaded_file($fotoTmp, $fotoDestino)) {
-                    echo "Imagem salva em: " . $fotoDestino;  // Debug
-                } else {
-                    echo "<script>alert('Erro ao mover a imagem.');</script>";
-                }
-            }
-
-            // Monta a query para inserir o novo produto
-            $sql = "INSERT INTO PRODUTOS (CATEGORIA, PRODUTO, QUANTIDADE, VALOR_UNITARIO, VALOR_TOTAL, FOTO) VALUES (?, ?, ?, ?, ?, ?)";
-            $stmt = $con->prepare($sql);
-            $stmt->bind_param("ssidds", $categoria, $produto, $quantidade, $valor_unitario, $valor_total, $fotoDestino);
-            if ($stmt->execute()) {
-                echo "<script>alert('Produto cadastrado com sucesso!');</script>";
-                header("Location: " . $_SERVER['PHP_SELF']);
-                exit;
-            } else {
-                echo "<script>alert('Erro ao cadastrar o produto.');</script>";
-            }
-        }
-    } else {
-        // Se algum campo obrigatório não foi preenchido
-        echo "<script>alert('Por favor, preencha todos os campos obrigatórios.');</script>";
-    }
-}
-?>
-<!-- filepath: c:\xampp\htdocs\Canil\admin\categorias\index.php -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <!-- Define o charset e responsividade -->
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabela de Categorias</title>
-    <style>
-    /* Estilos para o corpo da página */
+  <meta charset="UTF-8" /> <!-- Define o charset da página -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> <!-- Responsividade -->
+  <title>Canil Legalzinho</title> <!-- Título da página -->
+  <style>
+    * {
+      margin: 0; /* Remove margens padrão */
+      padding: 0; /* Remove espaçamentos padrão */
+      box-sizing: border-box; /* Inclui borda e padding no tamanho total */
+    }
+
     body {
-        font-family: Arial, sans-serif;
-        background-color: pink;
-        color: #333;
+      font-family: Arial, sans-serif; /* Fonte principal */
+      background: #f8f3f6; /* Cor de fundo */
+      color: #333; /* Cor do texto */
     }
-    /* Estilos para a tabela de produtos */
-    table {
-        width: 80%;
-        margin: 20px auto;
-        border-collapse: collapse;
+
+    header {
+      background: #ffffff; /* Fundo do cabeçalho */
+      display: flex; /* Layout flexível */
+      justify-content: space-between; /* Espaço entre logo e navegação */
+      align-items: center; /* Alinha verticalmente */
+      padding: 1rem 2rem; /* Espaçamento interno */
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Sombra */
+      position: sticky; /* Fixa no topo ao rolar */
+      top: 0; /* Topo da página */
+      z-index: 999; /* Sobrepõe outros elementos */
     }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: center;
+
+    .hero-nav {
+      display: flex; /* Layout flexível */
+      gap: 1rem; /* Espaço entre links */
     }
-    th {
-        background-color: #f4f4f4;
+
+    .hero-nav a {
+      text-decoration: none; /* Remove sublinhado */
+      color: #444; /* Cor dos links */
+      font-weight: bold; /* Negrito */
     }
-    tr:nth-child(even) {
-        background-color: #f9f9f9;
+
+    .hero-nav a:hover {
+      color: #da70d6; /* Cor ao passar o mouse */
     }
-    tr:hover {
-        background-color: #f1f1f1;
+
+    .hero-banner {
+      display: flex; /* Layout flexível */
+      flex-direction: column; /* Coluna em telas pequenas */
+      align-items: center; /* Centraliza conteúdo */
+      text-align: center; /* Centraliza texto */
+      padding: 3rem 1rem; /* Espaçamento interno */
+      background-color: #fff0f5; /* Fundo da seção */
     }
-    tfoot td {
-        text-align: center;
+
+    .hero-banner h1 {
+      font-size: 2rem; /* Tamanho do título */
+      margin-bottom: 1rem; /* Espaço abaixo */
+      color: #da70d6; /* Cor do título */
     }
-    table img {
-        width: 50px;
-        height: 50px;
-        object-fit: cover;
+
+    .hero-banner p {
+      font-size: 1rem; /* Tamanho do texto */
+      max-width: 600px; /* Largura máxima */
+      margin-bottom: 2rem; /* Espaço abaixo */
     }
-    /* Estilo do formulário de cadastro */
-    #form-container {
-        width: 80%;
-        margin: 20px auto;
-        padding: 20px;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+    .cta-button {
+      background: #da70d6; /* Cor de fundo */
+      color: #fff; /* Cor do texto */
+      padding: 1rem 2rem; /* Espaçamento interno */
+      font-size: 1rem; /* Tamanho da fonte */
+      border: none; /* Sem borda */
+      border-radius: 25px; /* Borda arredondada */
+      cursor: pointer; /* Cursor de clique */
+      transition: background 0.3s; /* Transição suave */
     }
-    #form-container form {
-        display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 10px;
-        align-items: center;
+
+    .cta-button:hover {
+      background: #c25cc2; /* Cor ao passar o mouse */
     }
-    #form-container label {
-        text-align: right;
-        margin-right: 10px;
+
+    .pet-card-oferta {
+      display: flex; /* Layout flexível */
+      flex-wrap: wrap; /* Quebra linha se necessário */
+      gap: 2rem; /* Espaço entre cards */
+      justify-content: center; /* Centraliza cards */
+      padding: 2rem 1rem; /* Espaçamento interno */
     }
-    #form-container input[type="text"],
-    #form-container input[type="number"],
-    #form-container input[type="file"] {
-        width: 100%;
-        padding: 5px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        text-transform: uppercase;
+
+    .pet-card {
+      background: #fff; /* Fundo branco */
+      border-radius: 12px; /* Borda arredondada */
+      padding: 1rem; /* Espaçamento interno */
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Sombra */
+      text-align: center; /* Centraliza texto */
+      width: 280px; /* Largura fixa */
     }
-    #form-container button {
-        grid-column: span 2;
-        padding: 10px;
-        background-color: rgb(186, 12, 131);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
+
+    .pet-card h3 {
+      margin: 1rem 0 0.5rem; /* Espaçamento acima e abaixo */
+      color: #da70d6; /* Cor do nome do pet */
     }
-    #form-container button:hover {
-        background-color:rgba(160, 69, 130, 0.37);
+
+    .pet-card p {
+      font-size: 0.9rem; /* Tamanho do texto */
+      color: #555; /* Cor do texto */
     }
-    .btn-deletar {
-        padding: 5px 10px;
-        background-color: #e74c3c;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
+
+    .garantia {
+      display: flex; /* Layout flexível */
+      flex-direction: column; /* Coluna em telas pequenas */
+      align-items: center; /* Centraliza conteúdo */
+      padding: 2rem 1rem; /* Espaçamento interno */
+      background: #fff; /* Fundo branco */
+      text-align: center; /* Centraliza texto */
     }
-    .btn-deletar:hover {
-        background-color: #c0392b;
+
+    .garantia h2 {
+      color: #da70d6; /* Cor do título */
+      margin-bottom: 1rem; /* Espaço abaixo */
     }
-    </style>
+
+    .garantia p {
+      max-width: 600px; /* Largura máxima */
+    }
+
+    .blog-carrossel {
+      padding: 2rem 1rem; /* Espaçamento interno */
+      background: #f0e6f6; /* Fundo da seção */
+      text-align: center; /* Centraliza texto */
+    }
+
+    .blog-carrossel h2 {
+      margin-bottom: 1rem; /* Espaço abaixo */
+      color: #9932cc; /* Cor do título */
+    }
+
+    .slides {
+      display: flex; /* Layout flexível */
+      gap: 1rem; /* Espaço entre slides */
+      overflow-x: auto; /* Rolagem horizontal */
+      scroll-snap-type: x mandatory; /* Snap nos slides */
+      padding-bottom: 1rem; /* Espaço abaixo */
+    }
+
+    .slide {
+      flex: 0 0 80%; /* Largura dos slides em telas pequenas */
+      background: #fff; /* Fundo branco */
+      border-radius: 12px; /* Borda arredondada */
+      padding: 1rem; /* Espaçamento interno */
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Sombra */
+      scroll-snap-align: center; /* Snap centralizado */
+    }
+
+    .slide h3 {
+      color: #da70d6; /* Cor do título do slide */
+      margin-bottom: 0.5rem; /* Espaço abaixo */
+    }
+
+    .slide p {
+      font-size: 0.9rem; /* Tamanho do texto */
+    }
+
+    footer {
+      background: #333; /* Fundo escuro */
+      color: #fff; /* Cor do texto */
+      text-align: center; /* Centraliza texto */
+      padding: 1rem; /* Espaçamento interno */
+    }
+
+    footer p {
+      margin: 0; /* Remove margem */
+    }
+
+    @media (min-width: 768px) {
+      .hero-banner {
+        flex-direction: row; /* Linha em telas grandes */
+        justify-content: space-between; /* Espaço entre elementos */
+        text-align: left; /* Alinha texto à esquerda */
+        padding: 4rem 6rem; /* Espaçamento maior */
+      }
+
+      .garantia {
+        flex-direction: row; /* Linha em telas grandes */
+        justify-content: center; /* Centraliza conteúdo */
+        gap: 2rem; /* Espaço entre elementos */
+        text-align: left; /* Alinha texto à esquerda */
+      }
+
+      .slides {
+        gap: 2rem; /* Espaço maior entre slides */
+      }
+
+      .slide {
+        flex: 0 0 30%; /* Slides mais estreitos em telas grandes */
+      }
+    }
+  </style>
 </head>
 <body>
-<!-- MENU DE NAVEGAÇÃO -->
-<div style="background-color: #c2185b; padding: 10px;">
-  <a href="index.php" style="color: white; margin-right: 20px; text-decoration: none;">📋 Cadastro de Categorias</a>
-  <a href="vendas.php" style="color: white; text-decoration: none;">💰 Relatório de Vendas</a>
-</div>
+  <header>
+    <!-- Logo removida -->
+    <nav class="hero-nav">
+        <a href="index.php">Home</a> <!-- Link para a página inicial -->
+        <a href="caes_disponiveis.php">Cães Disponíveis</a> <!-- Link para cães -->
+        <a href="#">Sobre</a> <!-- Link para sobre -->
+        <a href="#">Contato</a> <!-- Link para contato -->
+    </nav>
+    <h1>Canil Legalzinho</h1> <!-- Nome do canil -->
+  </header>
 
-<!-- Mensagem de boas-vindas -->
-<h1>Bem vindo, Admin !</h1>
-<!-- Formulário de cadastro de categorias/produtos -->
-<form method="POST" enctype="multipart/form-data" action="salvar.php">
-  <!-- campos do formulário -->
-</form>
-<h1>Cadastro de Categorias</h1>
+  <section class="hero-banner">
+    <div>
+      <h1>Encontre seu novo melhor amigo</h1> <!-- Título principal -->
+      <p>Descubra os mais adoráveis e saudáveis filhotes prontos para fazer parte da sua família!</p> <!-- Descrição -->
+      <button class="cta-button">Ver Filhotes</button> <!-- Botão de chamada para ação -->
+    </div>
+    <div class="hero-pet-card">
+      <!-- Imagem principal removida -->
+    </div>
+  </section>
 
-<!-- Formulário para cadastro -->
-<div id="form-container" class="form-container">
-<form action="" method="POST" enctype="multipart/form-data">
-    <input type="hidden" id="id" name="id">
-    
-    <label for="foto">Foto:</label>
-    <input type="file" id="foto" name="foto" accept="image/*">
+  <section class="pet-card-oferta">
+    <!-- Cards de pets sem imagem -->
+    <div class="pet-card">
+      <h3>Golden Retriever</h3> <!-- Nome do pet -->
+      <p>3 meses - Vacinado e Vermifugado</p> <!-- Informações do pet -->
+    </div>
+    <div class="pet-card">
+      <h3>Shih Tzu</h3> <!-- Nome do pet -->
+      <p>2 meses - Pelagem Premium</p> <!-- Informações do pet -->
+    </div>
+  </section>
 
-    <label for="categoria">Categoria:</label>
-    <input type="text" id="categoria" name="categoria" required>
+  <section class="garantia">
+    <!-- Imagem de garantia removida -->
+    <div>
+      <h2>Garantia de Saúde e Procedência</h2> <!-- Título da garantia -->
+      <p>Todos os nossos filhotes são entregues com garantia de saúde, carteira de vacinação atualizada e acompanhamento veterinário.</p> <!-- Texto da garantia -->
+    </div>
+  </section>
 
-    <label for="produto">Produto:</label>
-    <input type="text" id="produto" name="produto" required>
+  <section class="blog-carrossel">
+    <h2>Dicas e Cuidados</h2> <!-- Título do blog -->
+    <div class="slides">
+      <div class="slide">
+        <h3>Como alimentar seu filhote</h3> <!-- Título do slide -->
+        <p>Dicas essenciais sobre alimentação saudável para seu novo amiguinho.</p> <!-- Texto do slide -->
+      </div>
+      <div class="slide">
+        <h3>Primeiros cuidados em casa</h3> <!-- Título do slide -->
+        <p>O que fazer nos primeiros dias com seu novo cãozinho.</p> <!-- Texto do slide -->
+      </div>
+      <div class="slide">
+        <h3>Vacinação e Vermifugação</h3> <!-- Título do slide -->
+        <p>Entenda o calendário de vacinas e cuidados essenciais.</p> <!-- Texto do slide -->
+      </div>
+    </div>
+  </section>
 
-    <label for="quantidade">Quantidade:</label>
-    <input type="number" id="quantidade" name="quantidade" required>
-
-    <label for="valor_unitario">Valor Unitário:</label>
-    <input type="number" step="0.01" id="valor_unitario" name="valor_unitario" required>
-
-    <button type="submit" id="submit-button">➕ Cadastrar Produto</button>
-</form>
-</div>
-
-<!-- Tabela de Produtos -->
-<table>
-    <thead> 
-        <tr>
-            <th>📷 Foto</th>
-            <th>🏷️ Categoria</th>
-            <th>📦 Produto</th>
-            <th>🔢 Quantidade</th>
-            <th>💲 Valor Unitário</th>
-            <th>💰 Valor Total</th>
-            <th>✏️ Editar</th>
-            <th>🗑️ Deletar</th>
-        </tr>
-    </thead>
-    <tbody>
-<?php
-// Inclui novamente a conexão para garantir acesso ao banco
-include '../banco.php';
-
-// Busca todos os produtos cadastrados
-$sql = "SELECT * FROM PRODUTOS";
-$result = $con->query($sql);
-
-// Se houver produtos, exibe cada um em uma linha da tabela
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        echo "<tr>
-            <td><img src='{$row['FOTO']}' alt='Foto do Produto'>
-            <td>{$row['CATEGORIA']}</td>
-            <td>{$row['PRODUTO']}</td>
-            <td>{$row['QUANTIDADE']}</td>
-            <td>R$ " . number_format($row['VALOR_UNITARIO'], 2, ',', '.') . "</td>
-            <td>R$ " . number_format($row['VALOR_TOTAL'], 2, ',', '.') . "</td>
-            <td>
-                <button type='button' class='btn-editar' 
-                    onclick=\"editarProduto(
-                        {$row['ID']}, 
-                        '" . addslashes($row['CATEGORIA']) . "', 
-                        '" . addslashes($row['PRODUTO']) . "', 
-                        {$row['QUANTIDADE']}, 
-                        {$row['VALOR_UNITARIO']}
-                    )\">
-                    ✏️ Editar
-                </button>
-            </td>
-            <td>
-                <button type='button' class='btn-deletar' 
-                    onclick='confirmarDelecao(" . $row['ID'] . ")'>
-                    🗑️ Deletar
-                </button>
-            </td>
-        </tr>";
-    }
-} else {
-    // Se não houver produtos cadastrados, exibe mensagem
-    echo "<tr><td colspan='7'>Nenhum produto cadastrado.</td></tr>";
-}
-// Fecha a conexão com o banco de dados
-$con->close();
-?>
-    </tbody>
-    <tfoot>
-        <tr>
-            <td colspan="7"><a href="../index.php">Voltar para o Menu Principal</a></td>
-        </tr>
-    </tfoot>
-</table>
-
-<!-- Função JavaScript para preencher o formulário ao editar um produto -->
-<script>
-function editarProduto(id, categoria, produto, quantidade, valorUnitario) {
-    document.getElementById('id').value = id;
-    document.getElementById('categoria').value = categoria;
-    document.getElementById('produto').value = produto;
-    document.getElementById('quantidade').value = quantidade;
-    document.getElementById('valor_unitario').value = valorUnitario;
-    document.getElementById('submit-button').textContent = '✏️ Atualizar Produto';
-}
-</script>
-<!-- Função JavaScript para confirmar a exclusão de um produto -->
-<script>
-function confirmarDelecao(id) {
-    if (confirm('Tem certeza que deseja excluir este produto?')) {
-        // Envia o ID para exclusão via POST usando um formulário oculto
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = ''; // A mesma página
-
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'delete_id';
-        input.value = id;
-
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
-</script>
+  <footer>
+    <p>© 2025 Canil Legalzinho. Todos os direitos reservados.</p> <!-- Rodapé -->
+  </footer>
 </body>
 </html>
+
